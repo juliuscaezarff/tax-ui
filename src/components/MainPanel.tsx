@@ -28,7 +28,7 @@ export function MainPanel(props: Props) {
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-auto">
         {props.view === "summary" ? (
           <>
             <SummaryStats returns={props.returns} />

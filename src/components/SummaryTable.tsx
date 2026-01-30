@@ -273,6 +273,9 @@ export function SummaryTable({ returns }: Props) {
           }
           return info.getValue();
         },
+        meta: {
+          sticky: true,
+        } satisfies ColumnMeta,
         size: 200,
       }),
     ];
@@ -320,7 +323,7 @@ export function SummaryTable({ returns }: Props) {
   }, [years]);
 
   return (
-    <div className="p-6 font-mono text-sm overflow-x-auto">
+    <div className="p-6 font-mono text-sm">
       <Table data={rows} columns={columns} storageKey="summary-table" />
     </div>
   );
