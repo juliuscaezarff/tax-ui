@@ -65,3 +65,11 @@ export type LabeledAmount = z.infer<typeof LabeledAmount>;
 export type StateReturn = z.infer<typeof StateReturn>;
 export type TaxRates = z.infer<typeof TaxRates>;
 export type FilingStatus = TaxReturn["filingStatus"];
+
+export interface PendingUpload {
+  id: string;
+  filename: string;
+  year: number | null;
+  status: "extracting-year" | "parsing";
+  file: File;
+}

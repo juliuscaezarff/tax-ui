@@ -1,34 +1,12 @@
 import { useMemo, useState } from "react";
 import type { TaxReturn } from "../lib/schema";
-import { formatCompact, formatCurrencyCents } from "../lib/format";
+import { formatCompact } from "../lib/format";
+import { getTotalTax, getNetIncome } from "../lib/tax-calculations";
+import { type TimeUnit, TIME_UNIT_LABELS, convertToTimeUnit, formatTimeUnitValueCompact } from "../lib/time-units";
 import { Sparkline } from "./Sparkline";
-
-type TimeUnit = "daily" | "hourly" | "minute" | "second";
-
-const TIME_UNIT_LABELS: Record<TimeUnit, string> = {
-  daily: "Daily",
-  hourly: "Hourly",
-  minute: "Minute",
-  second: "Second",
-};
-
-const TIME_UNIT_SUFFIXES: Record<TimeUnit, string> = {
-  daily: "day",
-  hourly: "hr",
-  minute: "min",
-  second: "sec",
-};
 
 interface Props {
   returns: Record<number, TaxReturn>;
-}
-
-function getTotalTax(data: TaxReturn): number {
-  return data.federal.tax + data.states.reduce((sum, s) => sum + s.tax, 0);
-}
-
-function getNetIncome(data: TaxReturn): number {
-  return data.income.total - getTotalTax(data);
 }
 
 function getDailyTake(data: TaxReturn): number {
@@ -37,29 +15,6 @@ function getDailyTake(data: TaxReturn): number {
 
 function getHourlyTake(data: TaxReturn): number {
   return getNetIncome(data) / 2080; // 40 hrs × 52 weeks
-}
-
-function convertToTimeUnit(hourlyRate: number, unit: TimeUnit): number {
-  switch (unit) {
-    case "daily":
-      return hourlyRate * 8;
-    case "hourly":
-      return hourlyRate;
-    case "minute":
-      return hourlyRate / 60;
-    case "second":
-      return hourlyRate / 3600;
-  }
-}
-
-function formatTimeUnitValue(amount: number, unit: TimeUnit): string {
-  if (unit === "daily") {
-    return formatCompact(Math.round(amount));
-  }
-  if (unit === "hourly") {
-    return formatCompact(Math.round(amount));
-  }
-  return formatCurrencyCents(amount, TIME_UNIT_SUFFIXES[unit]);
 }
 
 export function SummaryStats({ returns }: Props) {
@@ -149,7 +104,7 @@ export function SummaryStats({ returns }: Props) {
             className="text-[var(--color-muted)] mb-2"
           />
           <div className="text-2xl font-bold tabular-nums">
-            {formatTimeUnitValue(timeUnitValue, timeUnit)}
+            {formatTimeUnitValueCompact(timeUnitValue, timeUnit)}
           </div>
           <div className="text-xs text-[var(--color-muted)] mt-1 flex items-center gap-1">
             <span>{timeUnitLabel}</span>

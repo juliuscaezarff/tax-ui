@@ -1,63 +1,21 @@
 import { useState } from "react";
 import type { TaxReturn } from "../lib/schema";
-import { formatPercent, formatCurrency, formatCurrencyCents } from "../lib/format";
+import { formatPercent } from "../lib/format";
+import { getTotalTax, getEffectiveRate } from "../lib/tax-calculations";
+import { type TimeUnit, TIME_UNIT_LABELS, convertToTimeUnit, formatTimeUnitValue } from "../lib/time-units";
 import { Row, RateRow } from "./Row";
 import { Separator, DoubleSeparator, SectionHeader } from "./Section";
 import { SleepingEarnings } from "./SleepingEarnings";
 import { TaxFreedomDay } from "./TaxFreedomDay";
 
-type TimeUnit = "daily" | "hourly" | "minute" | "second";
-
-const TIME_UNIT_LABELS: Record<TimeUnit, string> = {
-  daily: "Daily",
-  hourly: "Hourly",
-  minute: "Minute",
-  second: "Second",
-};
-
-const TIME_UNIT_SUFFIXES: Record<TimeUnit, string> = {
-  daily: "day",
-  hourly: "hr",
-  minute: "min",
-  second: "sec",
-};
-
 interface Props {
   data: TaxReturn;
-}
-
-function convertToTimeUnit(hourlyRate: number, unit: TimeUnit): number {
-  switch (unit) {
-    case "daily":
-      return hourlyRate * 8;
-    case "hourly":
-      return hourlyRate;
-    case "minute":
-      return hourlyRate / 60;
-    case "second":
-      return hourlyRate / 3600;
-  }
-}
-
-function formatTimeUnitValue(amount: number, unit: TimeUnit): string {
-  if (unit === "daily" || unit === "hourly") {
-    return formatCurrency(Math.round(amount));
-  }
-  return formatCurrencyCents(amount, TIME_UNIT_SUFFIXES[unit]);
-}
-
-function getEffectiveRate(data: TaxReturn): number {
-  if (data.rates?.combined?.effective) {
-    return data.rates.combined.effective / 100;
-  }
-  const totalTax = data.federal.tax + data.states.reduce((sum, s) => sum + s.tax, 0);
-  return totalTax / data.income.total;
 }
 
 export function ReceiptView({ data }: Props) {
   const [timeUnit, setTimeUnit] = useState<TimeUnit>("daily");
 
-  const totalTax = data.federal.tax + data.states.reduce((sum, s) => sum + s.tax, 0);
+  const totalTax = getTotalTax(data);
   const netIncome = data.income.total - totalTax;
   const grossMonthly = Math.round(data.income.total / 12);
   const netMonthly = Math.round(netIncome / 12);

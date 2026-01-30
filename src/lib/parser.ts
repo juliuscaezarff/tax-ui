@@ -258,3 +258,58 @@ export async function parseTaxReturn(
   const client = new Anthropic({ apiKey });
   return smartExtract(pdfBase64, client);
 }
+
+export async function extractYearFromPdf(
+  pdfBase64: string,
+  apiKey: string
+): Promise<number | null> {
+  const client = new Anthropic({ apiKey });
+
+  // Extract just the first page for fast year detection
+  const pdfBytes = Buffer.from(pdfBase64, "base64");
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const firstPageDoc = await PDFDocument.create();
+  const [firstPage] = await firstPageDoc.copyPages(pdfDoc, [0]);
+  firstPageDoc.addPage(firstPage);
+  const firstPageBase64 = Buffer.from(await firstPageDoc.save()).toString("base64");
+
+  try {
+    const response = await client.messages.create({
+      model: "claude-haiku-4-20250514",
+      max_tokens: 50,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: firstPageBase64,
+              },
+            },
+            {
+              type: "text",
+              text: "What tax year is this document for? Respond with ONLY the 4-digit year (e.g., 2023). If you cannot determine the year, respond with 'UNKNOWN'.",
+            },
+          ],
+        },
+      ],
+    });
+
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      return null;
+    }
+
+    const yearMatch = textBlock.text.match(/\b(19|20)\d{2}\b/);
+    if (yearMatch) {
+      return parseInt(yearMatch[0], 10);
+    }
+    return null;
+  } catch (error) {
+    console.error("Year extraction failed:", error);
+    return null;
+  }
+}

@@ -3,26 +3,28 @@ import { useState, useRef, useEffect } from "react";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (file: File, apiKey: string) => Promise<void>;
+  onUpload: (files: File[], apiKey: string) => Promise<void>;
+  onSaveApiKey?: (apiKey: string) => Promise<void>;
   hasStoredKey: boolean;
-  pendingFile: File | null;
+  pendingFiles: File[];
+  configureKeyOnly?: boolean;
 }
 
-export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFile }: Props) {
+export function UploadModal({ isOpen, onClose, onUpload, onSaveApiKey, hasStoredKey, pendingFiles, configureKeyOnly }: Props) {
   const [apiKey, setApiKey] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const activeFile = pendingFile || file;
+  const activeFiles = pendingFiles.length > 0 ? pendingFiles : files;
   const needsApiKey = !hasStoredKey && !apiKey.trim();
-  const showFileUpload = !pendingFile;
+  const showFileUpload = pendingFiles.length === 0 && !configureKeyOnly;
 
   useEffect(() => {
     if (!isOpen) {
-      setFile(null);
+      setFiles([]);
       setApiKey("");
       setError(null);
     }
@@ -43,31 +45,51 @@ export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFi
     setIsDragging(false);
     setError(null);
 
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile?.type === "application/pdf") {
-      setFile(droppedFile);
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(f => f.type === "application/pdf");
+    if (droppedFiles.length > 0) {
+      setFiles(prev => [...prev, ...droppedFiles]);
     } else {
-      setError("Please upload a PDF file");
+      setError("Please upload PDF files");
     }
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     setError(null);
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile?.type === "application/pdf") {
-      setFile(selectedFile);
-    } else if (selectedFile) {
-      setError("Please upload a PDF file");
+    const selectedFiles = Array.from(e.target.files || []).filter(f => f.type === "application/pdf");
+    if (selectedFiles.length > 0) {
+      setFiles(prev => [...prev, ...selectedFiles]);
+    } else if (e.target.files?.length) {
+      setError("Please upload PDF files");
     }
   }
 
   async function handleSubmit() {
+    // API key only mode
+    if (configureKeyOnly) {
+      if (!apiKey.trim()) {
+        setError("Please enter your API key");
+        return;
+      }
+      setIsLoading(true);
+      setError(null);
+      try {
+        await onSaveApiKey?.(apiKey.trim());
+        setApiKey("");
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to save API key");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     if (needsApiKey) {
       setError("Please enter your API key");
       return;
     }
-    if (!activeFile) {
-      setError("Please select a PDF file");
+    if (activeFiles.length === 0) {
+      setError("Please select at least one PDF file");
       return;
     }
 
@@ -75,8 +97,8 @@ export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFi
     setError(null);
 
     try {
-      await onUpload(activeFile, apiKey.trim());
-      setFile(null);
+      await onUpload(activeFiles, apiKey.trim());
+      setFiles([]);
       setApiKey("");
       onClose();
     } catch (err) {
@@ -102,7 +124,7 @@ export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFi
       <div className="bg-[var(--color-bg)] border border-[var(--color-border)] max-w-md w-full p-6 font-mono">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-bold">
-            {pendingFile ? "Enter API Key" : "Upload Tax Return"}
+            {configureKeyOnly ? "Configure API Key" : pendingFiles.length > 0 ? "Enter API Key" : "Upload Tax Return"}
           </h2>
           <button
             onClick={onClose}
@@ -113,16 +135,20 @@ export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFi
           </button>
         </div>
 
-        {pendingFile && (
+        {pendingFiles.length > 0 && (
           <div className="mb-6 p-3 border border-[var(--color-border)]">
-            <p className="text-sm font-medium">{pendingFile.name}</p>
-            <p className="text-xs text-[var(--color-muted)] mt-1">
-              {(pendingFile.size / 1024 / 1024).toFixed(2)} MB
+            <p className="text-sm font-medium">
+              {pendingFiles.length} file{pendingFiles.length > 1 ? "s" : ""} selected
             </p>
+            <div className="text-xs text-[var(--color-muted)] mt-1 max-h-20 overflow-y-auto">
+              {pendingFiles.map((f, i) => (
+                <div key={i}>{f.name}</div>
+              ))}
+            </div>
           </div>
         )}
 
-        {!hasStoredKey && (
+        {(!hasStoredKey || configureKeyOnly) && (
           <div className="mb-6">
             <label className="block text-sm mb-2">Anthropic API Key</label>
             <input
@@ -134,7 +160,7 @@ export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFi
               className="w-full px-3 py-2 border border-[var(--color-border)] bg-transparent text-[var(--color-text)] font-mono text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-text)] disabled:opacity-50"
             />
             <p className="text-xs text-[var(--color-muted)] mt-2">
-              Saved to .env in this project directory.
+              {configureKeyOnly && hasStoredKey ? "Update your API key. " : ""}Saved to .env in this project directory.
             </p>
           </div>
         )}
@@ -155,20 +181,25 @@ export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFi
               ref={fileInputRef}
               type="file"
               accept=".pdf"
+              multiple
               onChange={handleFileSelect}
               disabled={isLoading}
               className="hidden"
             />
-            {file ? (
+            {files.length > 0 ? (
               <>
-                <p className="text-sm font-medium">{file.name}</p>
-                <p className="text-xs text-[var(--color-muted)] mt-1">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                <p className="text-sm font-medium">
+                  {files.length} file{files.length > 1 ? "s" : ""} selected
                 </p>
+                <div className="text-xs text-[var(--color-muted)] mt-1 max-h-20 overflow-y-auto">
+                  {files.map((f, i) => (
+                    <div key={i}>{f.name}</div>
+                  ))}
+                </div>
               </>
             ) : (
               <>
-                <p className="text-sm">Drop your tax return PDF here</p>
+                <p className="text-sm">Drop your tax return PDFs here</p>
                 <p className="text-xs text-[var(--color-muted)] mt-1">or click to browse</p>
               </>
             )}
@@ -181,25 +212,27 @@ export function UploadModal({ isOpen, onClose, onUpload, hasStoredKey, pendingFi
           </div>
         )}
 
-        <div className="mt-6 p-3 bg-[var(--color-text)]/5 text-xs text-[var(--color-muted)]">
-          <strong>Privacy:</strong> Your tax return is sent directly to Anthropic's API.
-          Data is stored locally in .tax-returns.json (gitignored).{" "}
-          <a
-            href="https://www.anthropic.com/legal/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-[var(--color-text)]"
-          >
-            Anthropic's privacy policy
-          </a>
-        </div>
+        {!configureKeyOnly && (
+          <div className="mt-6 p-3 bg-[var(--color-text)]/5 text-xs text-[var(--color-muted)]">
+            <strong>Privacy:</strong> Your tax return is sent directly to Anthropic's API.
+            Data is stored locally in .tax-returns.json (gitignored).{" "}
+            <a
+              href="https://www.anthropic.com/legal/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-[var(--color-text)]"
+            >
+              Anthropic's privacy policy
+            </a>
+          </div>
+        )}
 
         <button
           onClick={handleSubmit}
-          disabled={isLoading || needsApiKey || !activeFile}
+          disabled={isLoading || (configureKeyOnly ? !apiKey.trim() : (needsApiKey || activeFiles.length === 0))}
           className="mt-6 w-full py-3 bg-[var(--color-text)] text-[var(--color-bg)] font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
-          {isLoading ? "Processing..." : "Parse Tax Return"}
+          {isLoading ? (configureKeyOnly ? "Saving..." : "Processing...") : (configureKeyOnly ? "Save API Key" : `Parse ${activeFiles.length > 1 ? `${activeFiles.length} Returns` : "Tax Return"}`)}
         </button>
       </div>
     </div>

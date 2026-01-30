@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import type { TaxReturn } from "./lib/schema";
+import type { TaxReturn, PendingUpload } from "./lib/schema";
 import { demoReturn } from "./data/demo";
 import { Sidebar } from "./components/Sidebar";
 import { MainPanel } from "./components/MainPanel";
 import { UploadModal } from "./components/UploadModal";
+import { Chat } from "./components/Chat";
+import { extractYearFromFilename } from "./lib/year-extractor";
 import "./index.css";
 
-type SelectedView = "summary" | "demo" | number;
+type SelectedView = "summary" | "demo" | number | `pending:${string}`;
 
 interface AppState {
   returns: Record<number, TaxReturn>;
@@ -32,21 +34,41 @@ function getDefaultSelection(returns: Record<number, TaxReturn>): SelectedView {
   return "summary";
 }
 
-function buildSidebarItems(returns: Record<number, TaxReturn>): { id: string; label: string }[] {
-  const years = Object.keys(returns).map(Number).sort((a, b) => a - b);
+interface SidebarItem {
+  id: string;
+  label: string;
+  isPending?: boolean;
+  status?: "extracting-year" | "parsing";
+}
 
-  if (years.length === 0) {
+function buildSidebarItems(
+  returns: Record<number, TaxReturn>,
+  pendingUploads: PendingUpload[]
+): SidebarItem[] {
+  const years = Object.keys(returns).map(Number).sort((a, b) => a - b);
+  const items: SidebarItem[] = [];
+
+  if (years.length === 0 && pendingUploads.length === 0) {
     return [{ id: "demo", label: "Demo" }];
   }
 
-  if (years.length === 1) {
-    return years.map((y) => ({ id: String(y), label: String(y) }));
+  if (years.length > 1 || (years.length >= 1 && pendingUploads.length > 0)) {
+    items.push({ id: "summary", label: "Summary" });
   }
 
-  return [
-    { id: "summary", label: "Summary" },
-    ...years.map((y) => ({ id: String(y), label: String(y) })),
-  ];
+  items.push(...years.map((y) => ({ id: String(y), label: String(y) })));
+
+  // Add pending uploads
+  for (const pending of pendingUploads) {
+    items.push({
+      id: `pending:${pending.id}`,
+      label: pending.year ? String(pending.year) : "...",
+      isPending: true,
+      status: pending.status,
+    });
+  }
+
+  return items;
 }
 
 export function App() {
@@ -57,13 +79,16 @@ export function App() {
     isLoading: true,
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [configureKeyOnly, setConfigureKeyOnly] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isDark, setIsDark] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
   );
 
-  const items = buildSidebarItems(state.returns);
+  const items = buildSidebarItems(state.returns, pendingUploads);
 
   useEffect(() => {
     fetchInitialState()
@@ -128,6 +153,7 @@ export function App() {
   function parseSelectedId(id: string): SelectedView {
     if (id === "demo") return "demo";
     if (id === "summary") return "summary";
+    if (id.startsWith("pending:")) return id as `pending:${string}`;
     return Number(id);
   }
 
@@ -155,26 +181,102 @@ export function App() {
     }));
   }
 
-  async function handleUploadFromSidebar(file: File) {
+  async function handleUploadFromSidebar(files: File[]) {
+    if (files.length === 0) return;
+
+    // If no API key, open modal with all files
     if (!state.hasStoredKey) {
-      setPendingFile(file);
+      setPendingFiles(files);
       setIsModalOpen(true);
       return;
     }
 
-    setIsUploading(true);
-    try {
-      await processUpload(file, "");
-    } catch (err) {
-      console.error("Upload failed:", err);
-    } finally {
-      setIsUploading(false);
+    // Create pending uploads immediately (optimistic) for all files
+    const newPendingUploads: PendingUpload[] = files.map((file) => {
+      const filenameYear = extractYearFromFilename(file.name);
+      return {
+        id: crypto.randomUUID(),
+        filename: file.name,
+        year: filenameYear,
+        status: filenameYear ? "parsing" : "extracting-year",
+        file,
+      };
+    });
+
+    setPendingUploads((prev) => [...prev, ...newPendingUploads]);
+
+    // Select the first pending upload
+    const firstPending = newPendingUploads[0];
+    if (firstPending) {
+      setState((s) => ({ ...s, selectedYear: `pending:${firstPending.id}` }));
     }
+
+    // Extract years in parallel for files that don't have one from filename
+    await Promise.all(
+      newPendingUploads
+        .filter((p) => !p.year)
+        .map(async (pending) => {
+          try {
+            const formData = new FormData();
+            formData.append("pdf", pending.file);
+            const yearRes = await fetch("/api/extract-year", { method: "POST", body: formData });
+            const { year: extractedYear } = await yearRes.json();
+            setPendingUploads((prev) =>
+              prev.map((p) =>
+                p.id === pending.id ? { ...p, year: extractedYear, status: "parsing" } : p
+              )
+            );
+          } catch (err) {
+            console.error("Year extraction failed:", err);
+            setPendingUploads((prev) =>
+              prev.map((p) =>
+                p.id === pending.id ? { ...p, status: "parsing" } : p
+              )
+            );
+          }
+        })
+    );
+
+    // Process files sequentially (full parsing)
+    setIsUploading(true);
+    for (const pending of newPendingUploads) {
+      try {
+        await processUpload(pending.file, "");
+        // Remove from pending uploads after success
+        setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
+      } catch (err) {
+        console.error("Upload failed:", err);
+        // Remove from pending uploads on error, but continue processing others
+        setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
+      }
+    }
+    setIsUploading(false);
+
+    // Navigate to appropriate view after all uploads complete
+    setState((s) => ({
+      ...s,
+      selectedYear: getDefaultSelection(s.returns),
+    }));
   }
 
-  async function handleUploadFromModal(file: File, apiKey: string) {
-    await processUpload(file, apiKey);
-    setPendingFile(null);
+  async function handleUploadFromModal(files: File[], apiKey: string) {
+    for (const file of files) {
+      await processUpload(file, apiKey);
+    }
+    setPendingFiles([]);
+  }
+
+  async function handleSaveApiKey(apiKey: string) {
+    const res = await fetch("/api/config/key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json();
+      throw new Error(error || `HTTP ${res.status}`);
+    }
+    setState((s) => ({ ...s, hasStoredKey: true }));
   }
 
   function handleSelect(id: string) {
@@ -210,12 +312,51 @@ export function App() {
     );
   }
 
-  const selectedId =
-    state.selectedYear === "demo"
-      ? "demo"
-      : state.selectedYear === "summary"
-        ? "summary"
-        : String(state.selectedYear);
+  function getSelectedId(): string {
+    if (typeof state.selectedYear === "string" && state.selectedYear.startsWith("pending:")) {
+      return state.selectedYear;
+    }
+    if (state.selectedYear === "demo") return "demo";
+    if (state.selectedYear === "summary") return "summary";
+    return String(state.selectedYear);
+  }
+  const selectedId = getSelectedId();
+
+  function getReceiptData(): TaxReturn {
+    if (state.selectedYear === "demo") return demoReturn;
+    if (typeof state.selectedYear === "number") {
+      return state.returns[state.selectedYear] || demoReturn;
+    }
+    return demoReturn;
+  }
+
+  function renderMainPanel() {
+    const chatProps = {
+      isChatOpen,
+      onToggleChat: () => setIsChatOpen(!isChatOpen),
+    };
+
+    if (selectedPendingUpload) {
+      return <MainPanel view="loading" pendingUpload={selectedPendingUpload} {...chatProps} />;
+    }
+    if (state.selectedYear === "summary") {
+      return <MainPanel view="summary" returns={state.returns} {...chatProps} />;
+    }
+    return (
+      <MainPanel
+        view="receipt"
+        data={getReceiptData()}
+        title={state.selectedYear === "demo" ? "Demo" : String(state.selectedYear)}
+        {...chatProps}
+      />
+    );
+  }
+
+  // Find pending upload if selected
+  const selectedPendingUpload =
+    typeof state.selectedYear === "string" && state.selectedYear.startsWith("pending:")
+      ? pendingUploads.find((p) => `pending:${p.id}` === state.selectedYear)
+      : null;
 
   return (
     <div className="flex h-screen">
@@ -226,40 +367,36 @@ export function App() {
         onUpload={handleUploadFromSidebar}
         onDelete={handleDelete}
         isUploading={isUploading}
+        isDark={isDark}
+        onToggleDark={() => setIsDark(!isDark)}
+        onConfigureApiKey={() => {
+          setConfigureKeyOnly(true);
+          setIsModalOpen(true);
+        }}
       />
 
-      {state.selectedYear === "summary" ? (
-        <MainPanel view="summary" returns={state.returns} />
-      ) : (
-        <MainPanel
-          view="receipt"
-          data={
-            state.selectedYear === "demo"
-              ? demoReturn
-              : state.returns[state.selectedYear] || demoReturn
-          }
-          title={state.selectedYear === "demo" ? "Demo" : String(state.selectedYear)}
+      {renderMainPanel()}
+
+      {isChatOpen && (
+        <Chat
+          returns={state.returns}
+          hasApiKey={state.hasStoredKey}
+          onClose={() => setIsChatOpen(false)}
         />
       )}
-
-      <div className="fixed top-4 right-4">
-        <button
-          onClick={() => setIsDark(!isDark)}
-          className="text-xs px-2 py-1 border border-[var(--color-border)] hover:bg-[var(--color-text)] hover:text-[var(--color-bg)] transition-colors font-mono"
-        >
-          {isDark ? "Light" : "Dark"}
-        </button>
-      </div>
 
       <UploadModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          setPendingFile(null);
+          setPendingFiles([]);
+          setConfigureKeyOnly(false);
         }}
         onUpload={handleUploadFromModal}
+        onSaveApiKey={handleSaveApiKey}
         hasStoredKey={state.hasStoredKey}
-        pendingFile={pendingFile}
+        pendingFiles={pendingFiles}
+        configureKeyOnly={configureKeyOnly}
       />
     </div>
   );
