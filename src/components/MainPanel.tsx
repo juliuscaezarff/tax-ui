@@ -14,7 +14,8 @@ interface CommonProps {
   navItems: NavItem[];
   selectedId: string;
   onSelect: (id: string) => void;
-  onOpenSettings: () => void;
+  onOpenStart: () => void;
+  isDemo: boolean;
 }
 
 interface ReceiptProps extends CommonProps {
@@ -86,14 +87,13 @@ export function MainPanel(props: Props) {
               <Menu.Positioner className="z-50" sideOffset={8}>
                 <Menu.Popup className={`${menuPopupClassName} min-w-[180px]`}>
                   <Menu.Item
-                    onClick={props.onOpenSettings}
+                    onClick={props.onOpenStart}
                     className={menuItemClassName}
                   >
                     <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.25" className="opacity-60">
-                      <circle cx="7.5" cy="7.5" r="2.5" />
-                      <path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2M3 3l1.5 1.5M10.5 10.5L12 12M3 12l1.5-1.5M10.5 4.5L12 3" />
+                      <path d="M4 2l9 5.5L4 13V2z" />
                     </svg>
-                    Settings
+                    Start
                   </Menu.Item>
                   <Menu.Item
                     onClick={() => window.open("https://github.com/brianlovin/tax-ui", "_blank")}

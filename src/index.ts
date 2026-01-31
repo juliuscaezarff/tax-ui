@@ -28,8 +28,9 @@ const server = serve({
     "/api/config": {
       GET: () => {
         const hasKey = Boolean(getApiKey());
+        const isDemo = process.env.DEMO_MODE === "true";
         const isDev = process.env.NODE_ENV !== "production";
-        return Response.json({ hasKey, isDev });
+        return Response.json({ hasKey, isDemo, isDev });
       },
     },
     "/api/config/key": {

@@ -11,8 +11,20 @@ interface Message {
 interface Props {
   returns: Record<number, TaxReturn>;
   hasApiKey: boolean;
+  isDemo: boolean;
   onClose: () => void;
 }
+
+const DEMO_RESPONSE = `This is a demo with sample data. To chat about your own tax returns, run TaxUI locally:
+
+\`\`\`
+git clone https://github.com/brianlovin/tax-ui
+cd tax-ui
+bun install
+bun run dev
+\`\`\`
+
+You'll need Bun (bun.sh) and an Anthropic API key.`;
 
 const STORAGE_KEY = "tax-chat-history";
 const WIDTH_STORAGE_KEY = "tax-chat-width";
@@ -59,7 +71,7 @@ function saveWidth(width: number) {
   }
 }
 
-export function Chat({ returns, hasApiKey, onClose }: Props) {
+export function Chat({ returns, hasApiKey, isDemo, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>(() => loadMessages());
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -140,6 +152,19 @@ export function Chat({ returns, hasApiKey, onClose }: Props) {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+
+    // In demo mode, return a hardcoded response
+    if (isDemo) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: DEMO_RESPONSE,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/chat", {
@@ -226,12 +251,7 @@ export function Chat({ returns, hasApiKey, onClose }: Props) {
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <p className="text-sm text-[var(--color-text-muted)]">Ask about your taxes</p>
-            {!hasApiKey && (
-              <p className="text-xs text-[var(--color-negative)] mt-2">
-                Configure API key first
-              </p>
-            )}
-            {hasApiKey && hasReturns && (
+            {(isDemo || hasApiKey) && hasReturns && (
               <div className="mt-4 space-y-2 text-left w-full">
                 {["Total income?", "Compare tax rates", "Effective rate?"].map((suggestion) => (
                   <button
@@ -275,8 +295,8 @@ export function Chat({ returns, hasApiKey, onClose }: Props) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={hasApiKey ? "Ask anything..." : "Need API key"}
-          disabled={!hasApiKey || isLoading}
+          placeholder={isDemo || hasApiKey ? "Ask anything..." : "Need API key"}
+          disabled={(!isDemo && !hasApiKey) || isLoading}
           rows={1}
           className="w-full px-3 py-2.5 bg-[var(--color-bg-muted)] rounded-lg text-sm placeholder:text-[var(--color-text-muted)] resize-none focus:outline-none disabled:opacity-50 overflow-y-auto"
         />
