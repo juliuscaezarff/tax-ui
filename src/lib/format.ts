@@ -42,15 +42,14 @@ export function formatCurrencyCents(amount: number, suffix?: string): string {
   const abs = Math.abs(amount);
   const sign = amount < 0 ? "-" : "";
 
-  let decimals: number;
-  if (abs >= 1) {
-    decimals = 2;
-  } else if (abs >= 0.01) {
-    decimals = 2;
+  let value: string;
+  if (abs >= 0.01) {
+    value = abs.toFixed(2);
   } else {
-    decimals = 3;
+    // For sub-cent values, use 3 decimals but strip trailing zeros
+    value = parseFloat(abs.toFixed(3)).toString();
   }
 
-  const formatted = `${sign}$${abs.toFixed(decimals)}`;
+  const formatted = `${sign}$${value}`;
   return suffix ? `${formatted}/${suffix}` : formatted;
 }

@@ -15,6 +15,9 @@ interface Props {
 }
 
 const STORAGE_KEY = "tax-chat-history";
+const WIDTH_STORAGE_KEY = "tax-chat-width";
+const MIN_WIDTH = 320;
+const MAX_WIDTH_PERCENT = 0.5;
 
 function loadMessages(): Message[] {
   try {
@@ -36,12 +39,66 @@ function saveMessages(messages: Message[]) {
   }
 }
 
+function loadWidth(): number {
+  try {
+    const stored = localStorage.getItem(WIDTH_STORAGE_KEY);
+    if (stored) {
+      return Math.max(MIN_WIDTH, parseInt(stored, 10));
+    }
+  } catch {
+    // Ignore errors
+  }
+  return 360;
+}
+
+function saveWidth(width: number) {
+  try {
+    localStorage.setItem(WIDTH_STORAGE_KEY, String(width));
+  } catch {
+    // Ignore errors
+  }
+}
+
 export function Chat({ returns, hasApiKey, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>(() => loadMessages());
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [width, setWidth] = useState(() => loadWidth());
+  const [isResizing, setIsResizing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!isResizing) {
+      saveWidth(width);
+    }
+  }, [width, isResizing]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const maxWidth = window.innerWidth * MAX_WIDTH_PERCENT;
+      const newWidth = Math.min(maxWidth, Math.max(MIN_WIDTH, window.innerWidth - e.clientX));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   useEffect(() => {
     saveMessages(messages);
@@ -83,6 +140,7 @@ export function Chat({ returns, hasApiKey, onClose }: Props) {
         body: JSON.stringify({
           prompt,
           history: messages,
+          returns,
         }),
       });
 
@@ -123,15 +181,23 @@ export function Chat({ returns, hasApiKey, onClose }: Props) {
   const hasReturns = Object.keys(returns).length > 0;
 
   return (
-    <div className="w-72 flex flex-col h-full bg-[var(--color-bg)] border-l border-[var(--color-border)]">
+    <div
+      className="flex flex-col h-full bg-[var(--color-bg)] border-l border-[var(--color-border)] relative"
+      style={{ width }}
+    >
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-border)] z-10"
+      />
       {/* Header */}
-      <header className="px-4 py-3 flex items-center justify-between border-b border-[var(--color-border)]">
+      <header className="h-12 px-4 flex items-center justify-between border-b border-[var(--color-border)]">
         <span className="text-sm">Chat</span>
         <div className="flex items-center gap-2">
           {messages.length > 0 && (
             <button
               onClick={handleNewChat}
-              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             >
               New
             </button>
@@ -193,26 +259,17 @@ export function Chat({ returns, hasApiKey, onClose }: Props) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-[var(--color-border)]">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={hasApiKey ? "Ask a question..." : "Need API key"}
-            disabled={!hasApiKey || isLoading}
-            rows={1}
-            className="flex-1 px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-sm placeholder:text-[var(--color-text-muted)] resize-none focus:outline-none focus:border-[var(--color-text-muted)] disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={!hasApiKey || isLoading || !input.trim()}
-            className="px-3 py-2 bg-[var(--color-text)] text-[var(--color-bg)] text-sm disabled:opacity-50"
-          >
-            →
-          </button>
-        </div>
+      <form onSubmit={handleSubmit} className="p-4">
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={hasApiKey ? "Ask anything..." : "Need API key"}
+          disabled={!hasApiKey || isLoading}
+          rows={1}
+          className="w-full px-3 py-2.5 bg-[var(--color-bg-muted)] rounded-lg text-sm placeholder:text-[var(--color-text-muted)] resize-none focus:outline-none disabled:opacity-50"
+        />
       </form>
     </div>
   );

@@ -28,7 +28,8 @@ const server = serve({
     "/api/config": {
       GET: () => {
         const hasKey = Boolean(getApiKey());
-        return Response.json({ hasKey });
+        const isDev = process.env.NODE_ENV !== "production";
+        return Response.json({ hasKey, isDev });
       },
     },
     "/api/config/key": {
@@ -83,7 +84,7 @@ const server = serve({
     },
     "/api/chat": {
       POST: async (req) => {
-        const { prompt, history } = await req.json();
+        const { prompt, history, returns: clientReturns } = await req.json();
 
         if (!prompt || typeof prompt !== "string") {
           return Response.json({ error: "No prompt provided" }, { status: 400 });
@@ -94,7 +95,10 @@ const server = serve({
           return Response.json({ error: "No API key configured" }, { status: 400 });
         }
 
-        const returns = await getReturns();
+        // Use client-provided returns (for dev sample data) or fall back to stored returns
+        const returns = clientReturns && Object.keys(clientReturns).length > 0
+          ? clientReturns
+          : await getReturns();
         const client = new Anthropic({ apiKey });
 
         try {

@@ -1,12 +1,11 @@
 import { useState } from "react";
+import { Menu } from "@base-ui/react/menu";
 import type { TaxReturn } from "../lib/schema";
 import { formatPercent } from "../lib/format";
 import { getTotalTax, getEffectiveRate } from "../lib/tax-calculations";
 import { type TimeUnit, TIME_UNIT_LABELS, convertToTimeUnit, formatTimeUnitValue } from "../lib/time-units";
 import { Row, RateRow } from "./Row";
 import { Separator, DoubleSeparator, SectionHeader } from "./Section";
-import { SleepingEarnings } from "./SleepingEarnings";
-import { TaxFreedomDay } from "./TaxFreedomDay";
 
 interface Props {
   data: TaxReturn;
@@ -38,6 +37,40 @@ export function ReceiptView({ data }: Props) {
 
       {/* Content */}
       <div>
+        <SectionHeader>Monthly Breakdown</SectionHeader>
+        <Row label="Gross monthly" amount={grossMonthly} />
+        <Row label="Net monthly" amount={netMonthly} />
+
+        {/* Time unit */}
+        <div className="flex justify-between items-center py-1.5 text-sm">
+          <Menu.Root>
+            <Menu.Trigger className="flex items-center gap-1 hover:text-[var(--color-text-muted)] cursor-pointer">
+              {TIME_UNIT_LABELS[timeUnit]}
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="opacity-50">
+                <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner sideOffset={4} className="z-50">
+                <Menu.Popup className="bg-[var(--color-bg)] border border-[var(--color-border)] py-1 min-w-[120px] text-sm">
+                  {(["daily", "hourly", "minute", "second"] as TimeUnit[]).map((unit) => (
+                    <Menu.Item
+                      key={unit}
+                      onClick={() => setTimeUnit(unit)}
+                      className={`px-3 py-1.5 cursor-pointer hover:bg-[var(--color-bg-muted)] data-[highlighted]:bg-[var(--color-bg-muted)] outline-none ${
+                        timeUnit === unit ? "text-[var(--color-text)]" : "text-[var(--color-text-secondary)]"
+                      }`}
+                    >
+                      {TIME_UNIT_LABELS[unit]}
+                    </Menu.Item>
+                  ))}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+          <span className="tabular-nums">{formatTimeUnitValue(timeUnitValue, timeUnit)}</span>
+        </div>
+
         <SectionHeader>Income</SectionHeader>
         {data.income.items.map((item, i) => (
           <Row key={i} label={item.label} amount={item.amount} />
@@ -143,42 +176,8 @@ export function ReceiptView({ data }: Props) {
           </>
         )}
 
-        <SectionHeader>Monthly Breakdown</SectionHeader>
-        <Row label="Gross monthly" amount={grossMonthly} />
-        <Row label="Net monthly" amount={netMonthly} />
-
-        {/* Time unit */}
-        <div className="flex justify-between items-center py-1.5 text-sm">
-          <span className="flex items-center gap-1">
-            {TIME_UNIT_LABELS[timeUnit]}
-            {timeUnit === "hourly" && (
-              <span className="text-xs text-[var(--color-text-muted)]" title="Based on 2,080 hours/year">?</span>
-            )}
-          </span>
-          <span className="tabular-nums">{formatTimeUnitValue(timeUnitValue, timeUnit)}</span>
-        </div>
-
-        <div className="flex gap-1 mt-2">
-          {(["daily", "hourly", "minute", "second"] as TimeUnit[]).map((unit) => (
-            <button
-              key={unit}
-              onClick={() => setTimeUnit(unit)}
-              className={`px-2 py-1 text-xs ${
-                timeUnit === unit
-                  ? "text-[var(--color-text)]"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-              }`}
-            >
-              {unit.charAt(0).toUpperCase() + unit.slice(1)}
-            </button>
-          ))}
-        </div>
       </div>
 
-      <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
-        <SleepingEarnings netIncome={netIncome} />
-        <TaxFreedomDay years={[{ year: data.year, effectiveRate }]} />
-      </div>
     </div>
   );
 }
