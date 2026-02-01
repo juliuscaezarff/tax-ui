@@ -16,7 +16,7 @@ export function SummaryReceiptView({ returns }: Props) {
 
   if (!data) {
     return (
-      <div className="max-w-md mx-auto px-6 py-12 font-mono text-sm text-[var(--color-text-muted)]">
+      <div className="max-w-md mx-auto px-6 py-12 font-mono text-sm text-(--color-text-muted)">
         No tax returns available.
       </div>
     );
@@ -31,7 +31,7 @@ export function SummaryReceiptView({ returns }: Props) {
     <div className="max-w-md mx-auto px-6 py-12 font-mono text-sm">
       <header className="mb-2">
         <h1 className="text-lg font-bold tracking-tight">TAX SUMMARY</h1>
-        <p className="text-[var(--color-text-muted)] text-xs">
+        <p className="text-(--color-text-muted) text-xs">
           {data.yearCount} year{data.yearCount > 1 ? "s" : ""}: {yearRange}
         </p>
       </header>
@@ -88,7 +88,7 @@ export function SummaryReceiptView({ returns }: Props) {
         <>
           <SectionHeader>AVERAGE TAX RATES</SectionHeader>
           <Separator />
-          <div className="flex justify-between py-0.5 text-[var(--color-text-muted)] text-xs">
+          <div className="flex justify-between py-0.5 text-(--color-text-muted) text-xs">
             <span className="w-32" />
             <span className="w-20 text-right">Marginal</span>
             <span className="w-20 text-right">Effective</span>
@@ -128,7 +128,7 @@ export function SummaryReceiptView({ returns }: Props) {
           Avg. {TIME_UNIT_LABELS[timeUnit].toLowerCase()} take-home
           {timeUnit === "hourly" && (
             <span
-              className="text-[10px] text-[var(--color-text-muted)] cursor-help"
+              className="text-[10px] text-(--color-text-muted) cursor-help"
               title="Based on 2,080 working hours per year (40 hrs x 52 weeks)"
             >
               ?
@@ -145,8 +145,8 @@ export function SummaryReceiptView({ returns }: Props) {
             onClick={() => setTimeUnit(unit)}
             className={`px-2.5 py-1 text-xs rounded-lg border ${
               timeUnit === unit
-                ? "border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)]"
-                : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)]"
+                ? "border-(--color-text) bg-(--color-text) text-(--color-bg)"
+                : "border-(--color-border) text-(--color-text-muted) hover:border-(--color-text-muted)"
             }`}
           >
             {unit.charAt(0).toUpperCase()}
@@ -154,7 +154,7 @@ export function SummaryReceiptView({ returns }: Props) {
         ))}
       </div>
 
-      <footer className="mt-12 pt-4 border-t border-[var(--color-border)] text-[var(--color-text-muted)] text-xs text-center">
+      <footer className="mt-12 pt-4 border-t border-(--color-border) text-(--color-text-muted) text-xs text-center">
         Summary for {yearRange}
       </footer>
     </div>

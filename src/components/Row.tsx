@@ -13,7 +13,7 @@ export function Row({ label, amount, showSign, isTotal, isMuted }: RowProps) {
     <div
       className={`flex justify-between items-center py-1.5 text-sm ${
         isTotal ? "font-medium" : ""
-      } ${isMuted ? "text-[var(--color-text-muted)]" : ""}`}
+      } ${isMuted ? "text-(--color-text-muted)" : ""}`}
     >
       <span>{label}</span>
       <span className="tabular-nums">{formatCurrency(amount, showSign)}</span>

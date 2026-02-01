@@ -99,7 +99,7 @@ export function Table<TData>({ data, columns, storageKey, getRowClassName }: Tab
                   <th
                     key={header.id}
                     colSpan={header.colSpan}
-                    className={`${alignClass} ${stickyClass} py-2 px-4 text-xs text-[var(--color-text-muted)] font-normal relative bg-[var(--color-bg)]`}
+                    className={`${alignClass} ${stickyClass} py-2 px-4 text-xs text-(--color-text-muted) font-normal relative bg-(--color-bg)`}
                     style={{
                       width: header.getSize(),
                       boxShadow: headerShadow,
@@ -127,12 +127,12 @@ export function Table<TData>({ data, columns, storageKey, getRowClassName }: Tab
             return (
             <tr
               key={row.id}
-              className={`group hover:bg-[var(--color-row-hover)] ${customClassName}`}
+              className={`group hover:bg-(--color-row-hover) ${customClassName}`}
             >
               {row.getVisibleCells().map((cell) => {
                 const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
                 const stickyClass = meta?.sticky
-                  ? "sticky left-0 z-10 bg-[var(--color-bg)] group-hover:bg-[var(--color-row-hover)]"
+                  ? "sticky left-0 z-10 bg-(--color-bg) group-hover:bg-(--color-row-hover)"
                   : "";
                 const truncateClass = meta?.sticky ? "truncate max-w-[160px]" : "";
 

@@ -12,9 +12,9 @@ interface ButtonProps extends Omit<ComponentProps<typeof BaseButton>, "className
 }
 
 const variantStyles: Record<Variant, string> = {
-  primary: "bg-[var(--color-text)] text-[var(--color-bg)] hover:opacity-90",
-  secondary: "bg-[var(--color-bg-muted)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-bg-subtle)]",
-  ghost: "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)]",
+  primary: "bg-(--color-text) text-(--color-bg) hover:opacity-90",
+  secondary: "bg-(--color-bg-muted) text-(--color-text) border border-(--color-border) hover:bg-(--color-bg-subtle)",
+  ghost: "text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-bg-muted)",
   danger: "bg-red-500 text-white hover:bg-red-600",
   "danger-outline": "border border-red-400/50 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500",
 };
@@ -36,7 +36,7 @@ export function Button({
     <BaseButton
       className={[
         "rounded-lg outline-none",
-        "focus-visible:ring-2 focus-visible:ring-[var(--color-text-muted)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
+        "focus-visible:ring-2 focus-visible:ring-(--color-text-muted) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         variantStyles[variant],
         sizeStyles[size],

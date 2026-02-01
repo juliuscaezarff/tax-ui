@@ -245,7 +245,7 @@ export function SummaryTable({ returns }: Props) {
           if (row.isHeader) {
             return (
               <div className="pt-2">
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="text-xs text-(--color-text-muted)">
                   {row.label}
                 </span>
               </div>
@@ -253,7 +253,7 @@ export function SummaryTable({ returns }: Props) {
           }
           const hasNegativeValue = Object.values(row.values).some(v => v !== undefined && v < 0);
           return (
-            <span className={hasNegativeValue ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}>
+            <span className={hasNegativeValue ? "text-(--color-text-muted)" : "text-(--color-text)"}>
               {info.getValue()}
             </span>
           );
@@ -287,7 +287,7 @@ export function SummaryTable({ returns }: Props) {
 
             return (
               <div className="text-right tabular-nums flex items-center justify-end gap-2">
-                <span className={isNegative ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}>
+                <span className={isNegative ? "text-(--color-text-muted)" : "text-(--color-text)"}>
                   {formatValue(value, isRate)}
                 </span>
                 {prevYear !== undefined && row.showChange && (
@@ -316,7 +316,7 @@ export function SummaryTable({ returns }: Props) {
 
   const getRowClassName = (row: SummaryRow) => {
     if (row.isHeader && row.category !== "Monthly Breakdown") {
-      return "border-t border-[var(--color-border)]";
+      return "border-t border-(--color-border)";
     }
     return "";
   };
