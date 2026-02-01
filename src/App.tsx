@@ -8,7 +8,9 @@ import { SettingsModal } from "./components/SettingsModal";
 import { ResetDialog } from "./components/ResetDialog";
 import { OnboardingDialog } from "./components/OnboardingDialog";
 import { Chat, type ChatMessage } from "./components/Chat";
+import { Button } from "./components/Button";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { DevTools, cycleDemoOverride } from "./components/DevTools";
 import { extractYearFromFilename } from "./lib/year-extractor";
 import "./index.css";
 
@@ -51,7 +53,12 @@ interface AppState {
   isDev: boolean;
 }
 
-async function fetchInitialState(): Promise<Pick<AppState, "returns" | "hasStoredKey" | "hasUserData" | "isDemo" | "isDev">> {
+async function fetchInitialState(): Promise<
+  Pick<
+    AppState,
+    "returns" | "hasStoredKey" | "hasUserData" | "isDemo" | "isDev"
+  >
+> {
   const [configRes, returnsRes] = await Promise.all([
     fetch("/api/config"),
     fetch("/api/returns"),
@@ -59,20 +66,30 @@ async function fetchInitialState(): Promise<Pick<AppState, "returns" | "hasStore
   const { hasKey, isDemo, isDev } = await configRes.json();
   const returns = await returnsRes.json();
   const hasUserData = Object.keys(returns).length > 0;
-  return { hasStoredKey: hasKey, returns, hasUserData, isDemo: isDemo ?? false, isDev: isDev ?? false };
+  return {
+    hasStoredKey: hasKey,
+    returns,
+    hasUserData,
+    isDemo: isDemo ?? false,
+    isDev: isDev ?? false,
+  };
 }
 
 function getDefaultSelection(returns: Record<number, TaxReturn>): SelectedView {
-  const years = Object.keys(returns).map(Number).sort((a, b) => a - b);
+  const years = Object.keys(returns)
+    .map(Number)
+    .sort((a, b) => a - b);
   if (years.length === 0) return "summary";
   if (years.length === 1) return years[0] ?? "summary";
   return "summary";
 }
 
 function buildNavItems(returns: Record<number, TaxReturn>): NavItem[] {
-  const years = Object.keys(returns).map(Number).sort((a, b) => b - a);
+  const years = Object.keys(returns)
+    .map(Number)
+    .sort((a, b) => b - a);
   const items: NavItem[] = [];
-  if (years.length > 1) items.push({ id: "summary", label: "Summary" });
+  if (years.length > 1) items.push({ id: "summary", label: "All time" });
   items.push(...years.map((y) => ({ id: String(y), label: String(y) })));
   return items;
 }
@@ -81,17 +98,6 @@ function parseSelectedId(id: string): SelectedView {
   if (id === "summary") return "summary";
   if (id.startsWith("pending:")) return id as `pending:${string}`;
   return Number(id);
-}
-
-function cycleDemoOverride(current: boolean | null): boolean | null {
-  if (current === null) return true;
-  if (current === true) return false;
-  return null;
-}
-
-function getDemoOverrideLabel(value: boolean | null): string {
-  if (value === null) return "demo: auto";
-  return value ? "demo: on" : "demo: off";
 }
 
 export function App() {
@@ -117,24 +123,31 @@ export function App() {
     const stored = localStorage.getItem(CHAT_OPEN_KEY);
     return stored === null ? true : stored === "true";
   });
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isResetOpen, setIsResetOpen] = useState(false);
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [openModal, setOpenModal] = useState<"settings" | "reset" | "onboarding" | null>(null);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [isOnboardingProcessing, setIsOnboardingProcessing] = useState(false);
-  const [onboardingProgress, setOnboardingProgress] = useState<FileProgress[]>([]);
-  const [isDark, setIsDark] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
+  const [onboardingProgress, setOnboardingProgress] = useState<FileProgress[]>(
+    [],
+  );
+  const [isDark, setIsDark] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const [devTriggerError, setDevTriggerError] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => loadChatMessages());
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() =>
+    loadChatMessages(),
+  );
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [pendingAutoMessage, setPendingAutoMessage] = useState<string | null>(null);
+  const [pendingAutoMessage, setPendingAutoMessage] = useState<string | null>(
+    null,
+  );
   const [followUpSuggestions, setFollowUpSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   // Compute effective demo mode early (dev override takes precedence)
-  const effectiveIsDemo = devDemoOverride !== null ? devDemoOverride : state.isDemo;
+  const effectiveIsDemo =
+    devDemoOverride !== null ? devDemoOverride : state.isDemo;
 
   // When demo mode is toggled on, show sample data instead of user data
   const effectiveReturns = effectiveIsDemo ? sampleReturns : state.returns;
@@ -191,22 +204,10 @@ export function App() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Dev mode: Shift+D to toggle demo mode preview
-      if (state.isDev && e.key === "D" && e.shiftKey) {
-        e.preventDefault();
-        setDevDemoOverride((prev) => {
-          const newValue = cycleDemoOverride(prev);
-          if (newValue === null) {
-            localStorage.removeItem(DEV_DEMO_OVERRIDE_KEY);
-          } else {
-            localStorage.setItem(DEV_DEMO_OVERRIDE_KEY, String(newValue));
-          }
-          return newValue;
-        });
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
@@ -235,7 +236,7 @@ export function App() {
         }
       }
     },
-    [state.selectedYear, state.isDev, navItems]
+    [state.selectedYear, navItems],
   );
 
   useEffect(() => {
@@ -308,22 +309,27 @@ export function App() {
           try {
             const formData = new FormData();
             formData.append("pdf", pending.file);
-            const yearRes = await fetch("/api/extract-year", { method: "POST", body: formData });
+            const yearRes = await fetch("/api/extract-year", {
+              method: "POST",
+              body: formData,
+            });
             const { year: extractedYear } = await yearRes.json();
             setPendingUploads((prev) =>
               prev.map((p) =>
-                p.id === pending.id ? { ...p, year: extractedYear, status: "parsing" } : p
-              )
+                p.id === pending.id
+                  ? { ...p, year: extractedYear, status: "parsing" }
+                  : p,
+              ),
             );
           } catch (err) {
             console.error("Year extraction failed:", err);
             setPendingUploads((prev) =>
               prev.map((p) =>
-                p.id === pending.id ? { ...p, status: "parsing" } : p
-              )
+                p.id === pending.id ? { ...p, status: "parsing" } : p,
+              ),
             );
           }
-        })
+        }),
     );
 
     // Process files sequentially (full parsing)
@@ -351,9 +357,10 @@ export function App() {
 
     // Auto-trigger chat after successful upload
     if (successfulUploads > 0) {
-      const autoMessage = files.length === 1
-        ? "Help me understand my year"
-        : "Help me understand my history of income and taxes";
+      const autoMessage =
+        files.length === 1
+          ? "Help me understand my year"
+          : "Help me understand my history of income and taxes";
       setPendingAutoMessage(autoMessage);
       setIsChatOpen(true);
     }
@@ -507,7 +514,10 @@ export function App() {
     setState((s) => {
       const newReturns = { ...s.returns };
       delete newReturns[year];
-      const newSelection = s.selectedYear === year ? getDefaultSelection(newReturns) : s.selectedYear;
+      const newSelection =
+        s.selectedYear === year
+          ? getDefaultSelection(newReturns)
+          : s.selectedYear;
       return {
         ...s,
         returns: newReturns,
@@ -525,7 +535,10 @@ export function App() {
   }
 
   function getSelectedId(): string {
-    if (typeof state.selectedYear === "string" && state.selectedYear.startsWith("pending:")) {
+    if (
+      typeof state.selectedYear === "string" &&
+      state.selectedYear.startsWith("pending:")
+    ) {
       return state.selectedYear;
     }
     if (state.selectedYear === "summary") return "summary";
@@ -548,17 +561,25 @@ export function App() {
       navItems,
       selectedId,
       onSelect: handleSelect,
-      onOpenStart: () => setIsOnboardingOpen(true),
-      onOpenReset: () => setIsResetOpen(true),
+      onOpenStart: () => setOpenModal("onboarding"),
+      onOpenReset: () => setOpenModal("reset"),
       isDemo: effectiveIsDemo,
       hasUserData: state.hasUserData,
     };
 
     if (selectedPendingUpload) {
-      return <MainPanel view="loading" pendingUpload={selectedPendingUpload} {...commonProps} />;
+      return (
+        <MainPanel
+          view="loading"
+          pendingUpload={selectedPendingUpload}
+          {...commonProps}
+        />
+      );
     }
     if (state.selectedYear === "summary") {
-      return <MainPanel view="summary" returns={effectiveReturns} {...commonProps} />;
+      return (
+        <MainPanel view="summary" returns={effectiveReturns} {...commonProps} />
+      );
     }
     const receiptData = getReceiptData();
     if (receiptData) {
@@ -571,27 +592,33 @@ export function App() {
         />
       );
     }
-    return <MainPanel view="summary" returns={effectiveReturns} {...commonProps} />;
+    return (
+      <MainPanel view="summary" returns={effectiveReturns} {...commonProps} />
+    );
   }
 
   // Find pending upload if selected
   const selectedPendingUpload =
-    typeof state.selectedYear === "string" && state.selectedYear.startsWith("pending:")
+    typeof state.selectedYear === "string" &&
+    state.selectedYear.startsWith("pending:")
       ? pendingUploads.find((p) => `pending:${p.id}` === state.selectedYear)
       : null;
 
   // Show onboarding dialog for new users (unless dismissed) or when manually opened
   // Processing takes precedence - keep dialog open while processing
-  const showOnboarding = isOnboardingProcessing || isOnboardingOpen || (!onboardingDismissed && !state.hasStoredKey && !state.hasUserData);
+  const showOnboarding =
+    isOnboardingProcessing ||
+    openModal === "onboarding" ||
+    (!onboardingDismissed && !state.hasStoredKey && !state.hasUserData);
 
   function getPostUploadNavigation(
     existingYears: number[],
     uploadedYears: number[],
-    batchSize: number
+    batchSize: number,
   ): SelectedView {
     if (uploadedYears.length === 0) return "summary"; // all failed
-    if (batchSize === 1) return uploadedYears[0]!;    // single file -> that year
-    return "summary";                                  // multiple files -> summary
+    if (batchSize === 1) return uploadedYears[0]!; // single file -> that year
+    return "summary"; // multiple files -> summary
   }
 
   async function handleOnboardingUpload(files: File[], apiKey: string) {
@@ -618,7 +645,7 @@ export function App() {
       const id = progress[i]!.id;
 
       setOnboardingProgress((p) =>
-        p.map((f) => (f.id === id ? { ...f, status: "parsing" } : f))
+        p.map((f) => (f.id === id ? { ...f, status: "parsing" } : f)),
       );
 
       try {
@@ -626,40 +653,51 @@ export function App() {
         uploadedYears.push(taxReturn.year);
         setOnboardingProgress((p) =>
           p.map((f) =>
-            f.id === id ? { ...f, status: "complete", year: taxReturn.year } : f
-          )
+            f.id === id
+              ? { ...f, status: "complete", year: taxReturn.year }
+              : f,
+          ),
         );
       } catch (err) {
         setOnboardingProgress((p) =>
           p.map((f) =>
             f.id === id
-              ? { ...f, status: "error", error: err instanceof Error ? err.message : "Failed" }
-              : f
-          )
+              ? {
+                  ...f,
+                  status: "error",
+                  error: err instanceof Error ? err.message : "Failed",
+                }
+              : f,
+          ),
         );
       }
     }
 
     // Smart routing
-    const nav = getPostUploadNavigation(existingYears, uploadedYears, files.length);
+    const nav = getPostUploadNavigation(
+      existingYears,
+      uploadedYears,
+      files.length,
+    );
     setState((s) => ({ ...s, selectedYear: nav }));
 
     setIsOnboardingProcessing(false);
-    setIsOnboardingOpen(false);
+    setOpenModal(null);
     setOnboardingProgress([]);
 
     // Auto-trigger chat after successful upload
     if (uploadedYears.length > 0) {
-      const autoMessage = files.length === 1
-        ? "Help me understand my year"
-        : "Help me understand my history of income and taxes";
+      const autoMessage =
+        files.length === 1
+          ? "Help me understand my year"
+          : "Help me understand my history of income and taxes";
       setPendingAutoMessage(autoMessage);
       setIsChatOpen(true);
     }
   }
 
   function handleOnboardingClose() {
-    setIsOnboardingOpen(false);
+    setOpenModal(null);
     setOnboardingDismissed(true);
   }
 
@@ -670,9 +708,7 @@ export function App() {
 
   return (
     <div className="flex h-screen">
-      <ErrorBoundary name="Main Panel">
-        {renderMainPanel()}
-      </ErrorBoundary>
+      <ErrorBoundary name="Main Panel">{renderMainPanel()}</ErrorBoundary>
 
       {isChatOpen && (
         <ErrorBoundary name="Chat">
@@ -716,58 +752,34 @@ export function App() {
       />
 
       <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        isOpen={openModal === "settings"}
+        onClose={() => setOpenModal(null)}
         hasApiKey={state.hasStoredKey}
         onSaveApiKey={handleSaveApiKey}
         onClearData={handleClearData}
       />
 
       <ResetDialog
-        isOpen={isResetOpen}
-        onClose={() => setIsResetOpen(false)}
+        isOpen={openModal === "reset"}
+        onClose={() => setOpenModal(null)}
         onReset={handleClearData}
       />
 
       {/* Get started pill - show in demo mode when onboarding was dismissed */}
       {effectiveIsDemo && onboardingDismissed && !showOnboarding && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <button
-            onClick={() => setIsOnboardingOpen(true)}
-            className="get-started-pill px-4 py-2 text-sm font-medium rounded-full bg-black text-white dark:bg-zinc-800 shadow-lg hover:scale-105 transition-transform"
-          >
+          <Button variant="pill" onClick={() => setOpenModal("onboarding")}>
             Get started
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* Dev mode indicator */}
       {state.isDev && (
-        <div className="fixed bottom-4 left-4 z-50 flex gap-2">
-          <button
-            onClick={() => {
-              setDevDemoOverride((prev) => {
-                const newValue = cycleDemoOverride(prev);
-                if (newValue === null) {
-                  localStorage.removeItem(DEV_DEMO_OVERRIDE_KEY);
-                } else {
-                  localStorage.setItem(DEV_DEMO_OVERRIDE_KEY, String(newValue));
-                }
-                return newValue;
-              });
-            }}
-            className="px-2 py-1 text-xs font-mono rounded bg-(--color-bg-muted) border border-(--color-border) text-(--color-text-muted) hover:text-(--color-text) hover:border-(--color-text-muted)"
-          >
-            {getDemoOverrideLabel(devDemoOverride)}
-            <span className="ml-1.5 opacity-50">Shift+D</span>
-          </button>
-          <button
-            onClick={() => setDevTriggerError(true)}
-            className="px-2 py-1 text-xs font-mono rounded bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500/50"
-          >
-            trigger error
-          </button>
-        </div>
+        <DevTools
+          devDemoOverride={devDemoOverride}
+          onDemoOverrideChange={setDevDemoOverride}
+          onTriggerError={() => setDevTriggerError(true)}
+        />
       )}
     </div>
   );
