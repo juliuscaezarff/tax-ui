@@ -251,9 +251,9 @@ export function SummaryTable({ returns }: Props) {
               </div>
             );
           }
-          const hasNegativeValue = Object.values(row.values).some(v => v !== undefined && v < 0);
+          const isDeduction = row.label.startsWith("−") || row.label.startsWith("–") || row.label.startsWith("- ");
           return (
-            <span className={hasNegativeValue ? "text-(--color-text-muted)" : "text-(--color-text)"}>
+            <span className={isDeduction ? "text-(--color-text-muted)" : "text-(--color-text)"}>
               {info.getValue()}
             </span>
           );
@@ -283,11 +283,11 @@ export function SummaryTable({ returns }: Props) {
             const isRate = row.category === "Rates";
             const prevValue = prevYear !== undefined ? row.values[prevYear] : undefined;
 
-            const isNegative = value !== undefined && value < 0;
+            const isDeduction = row.label.startsWith("−") || row.label.startsWith("–") || row.label.startsWith("- ");
 
             return (
               <div className="text-right tabular-nums flex items-center justify-end gap-2">
-                <span className={isNegative ? "text-(--color-text-muted)" : "text-(--color-text)"}>
+                <span className={isDeduction ? "text-(--color-text-muted)" : "text-(--color-text)"}>
                   {formatValue(value, isRate)}
                 </span>
                 {prevYear !== undefined && row.showChange && (
@@ -321,9 +321,17 @@ export function SummaryTable({ returns }: Props) {
     return "";
   };
 
+  const isRowHoverDisabled = (row: SummaryRow) => row.isHeader === true;
+
   return (
     <div className="text-sm w-full h-full">
-      <Table data={rows} columns={columns} storageKey="summary-table" getRowClassName={getRowClassName} />
+      <Table
+        data={rows}
+        columns={columns}
+        storageKey="summary-table"
+        getRowClassName={getRowClassName}
+        isRowHoverDisabled={isRowHoverDisabled}
+      />
     </div>
   );
 }

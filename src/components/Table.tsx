@@ -18,9 +18,10 @@ interface TableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   storageKey?: string;
   getRowClassName?: (row: TData, index: number) => string;
+  isRowHoverDisabled?: (row: TData) => boolean;
 }
 
-export function Table<TData>({ data, columns, storageKey, getRowClassName }: TableProps<TData>) {
+export function Table<TData>({ data, columns, storageKey, getRowClassName, isRowHoverDisabled }: TableProps<TData>) {
   const [isScrolled, setIsScrolled] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -124,15 +125,19 @@ export function Table<TData>({ data, columns, storageKey, getRowClassName }: Tab
         <tbody>
           {table.getRowModel().rows.map((row, index) => {
             const customClassName = getRowClassName?.(row.original, index) ?? "";
+            const hoverDisabled = isRowHoverDisabled?.(row.original) ?? false;
+            const rowHoverClass = hoverDisabled ? "" : "hover:bg-(--color-row-hover)";
+            const noZebraClass = hoverDisabled ? "no-zebra" : "";
             return (
             <tr
               key={row.id}
-              className={`group hover:bg-(--color-row-hover) ${customClassName}`}
+              className={`group ${rowHoverClass} ${noZebraClass} ${customClassName}`}
             >
               {row.getVisibleCells().map((cell) => {
                 const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
+                const stickyCellHover = hoverDisabled ? "" : "group-hover:bg-(--color-row-hover)";
                 const stickyClass = meta?.sticky
-                  ? "sticky left-0 z-10 bg-(--color-bg) group-hover:bg-(--color-row-hover)"
+                  ? `sticky left-0 z-10 sticky-cell ${stickyCellHover}`
                   : "";
                 const truncateClass = meta?.sticky ? "truncate max-w-[160px]" : "";
 

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { Menu } from "@base-ui/react/menu";
-import { Tooltip } from "@base-ui/react/tooltip";
 import type { TaxReturn } from "../lib/schema";
+import { Tooltip } from "./Tooltip";
 import { formatCompact } from "../lib/format";
 import {
     getTotalTax,
@@ -15,6 +14,7 @@ import {
     formatTimeUnitValueCompact,
 } from "../lib/time-units";
 import { Sparkline } from "./Sparkline";
+import { Menu, MenuItem } from "./Menu";
 
 interface Props {
     returns: Record<number, TaxReturn>;
@@ -136,83 +136,61 @@ export function SummaryStats({ returns }: Props) {
 
                 <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                        <Menu.Root>
-                            <Menu.Trigger className="text-xs text-(--color-text-muted) flex items-center gap-1 hover:text-(--color-text) cursor-pointer">
-                                {TIME_UNIT_LABELS[timeUnit]}
-                                <svg
-                                    width="10"
-                                    height="10"
-                                    viewBox="0 0 16 16"
-                                    fill="currentColor"
-                                    className="opacity-50"
+                        <Menu
+                            triggerVariant="inline"
+                            triggerClassName="text-xs"
+                            popupClassName="min-w-[130px] text-sm"
+                            sideOffset={6}
+                            trigger={
+                                <>
+                                    {TIME_UNIT_LABELS[timeUnit]}
+                                    <svg
+                                        width="10"
+                                        height="10"
+                                        viewBox="0 0 16 16"
+                                        fill="currentColor"
+                                        className="opacity-50"
+                                    >
+                                        <path
+                                            d="M4 6l4 4 4-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                </>
+                            }
+                        >
+                            {(
+                                ["daily", "hourly", "minute", "second"] as TimeUnit[]
+                            ).map((unit) => (
+                                <MenuItem
+                                    key={unit}
+                                    onClick={() => setTimeUnit(unit)}
+                                    selected={timeUnit === unit}
                                 >
-                                    <path
-                                        d="M4 6l4 4 4-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                </svg>
-                            </Menu.Trigger>
-                            <Menu.Portal>
-                                <Menu.Positioner
-                                    sideOffset={6}
-                                    className="z-50"
-                                >
-                                    <Menu.Popup className="menu-popup bg-(--color-bg) border border-(--color-border) rounded-xl shadow-lg shadow-black/5 dark:shadow-black/20 py-1.5 min-w-[130px] text-sm">
-                                        {(
-                                            [
-                                                "daily",
-                                                "hourly",
-                                                "minute",
-                                                "second",
-                                            ] as TimeUnit[]
-                                        ).map((unit) => (
-                                            <Menu.Item
-                                                key={unit}
-                                                onClick={() =>
-                                                    setTimeUnit(unit)
-                                                }
-                                                className={`menu-item mx-1.5 px-2.5 py-1.5 cursor-pointer rounded-lg outline-none select-none ${
-                                                    timeUnit === unit
-                                                        ? "text-(--color-text) font-medium"
-                                                        : "text-(--color-text-muted)"
-                                                }`}
-                                            >
-                                                {TIME_UNIT_LABELS[unit]}
-                                            </Menu.Item>
-                                        ))}
-                                    </Menu.Popup>
-                                </Menu.Positioner>
-                            </Menu.Portal>
-                        </Menu.Root>
-                        <Tooltip.Root>
-                            <Tooltip.Trigger className="text-(--color-text-muted) hover:text-(--color-text)">
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 16 16"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.5"
-                                >
-                                    <circle cx="8" cy="8" r="6.5" />
-                                    <path
-                                        d="M8 7.5V11M8 5.5V5"
-                                        strokeLinecap="round"
-                                    />
-                                </svg>
-                            </Tooltip.Trigger>
-                            <Tooltip.Portal>
-                                <Tooltip.Positioner sideOffset={6}>
-                                    <Tooltip.Popup className="bg-white dark:bg-zinc-800 text-(--color-text) text-xs px-2.5 py-1.5 rounded-lg shadow-lg border border-(--color-border)">
-                                        Based on 2080hrs of work per year
-                                    </Tooltip.Popup>
-                                </Tooltip.Positioner>
-                            </Tooltip.Portal>
-                        </Tooltip.Root>
+                                    {TIME_UNIT_LABELS[unit]}
+                                </MenuItem>
+                            ))}
+                        </Menu>
+                        <Tooltip content="Based on 2080hrs of work per year">
+                            <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                            >
+                                <circle cx="8" cy="8" r="6.5" />
+                                <path
+                                    d="M8 7.5V11M8 5.5V5"
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                        </Tooltip>
                     </div>
                     <div className="text-2xl font-semibold tabular-nums tracking-tight">
                         {formatTimeUnitValueCompact(timeUnitValue, timeUnit)}
